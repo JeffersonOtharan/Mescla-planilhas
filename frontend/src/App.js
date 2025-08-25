@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Container, Typography, Button, Box, Grid, Select, MenuItem, InputLabel, FormControl, Stepper, Step, StepLabel, Card, CardContent, CircularProgress, Snackbar, Alert, Checkbox, FormControlLabel } from '@mui/material';
+import { Container, Typography, Button, Box, Grid, Select, MenuItem, InputLabel, FormControl, Stepper, Step, StepLabel, Card, CardContent, CircularProgress, Snackbar, Alert, Checkbox, FormControlLabel, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import { Home as HomeIcon, BugReport as BugIcon } from '@mui/icons-material';
 import axios from 'axios';
 
 const steps = ['Upload das Planilhas', 'Selecionar Chaves', 'Selecionar Colunas', 'Gerar e Baixar'];
@@ -19,6 +20,58 @@ function App() {
   const [mergedFile, setMergedFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [errorLogs, setErrorLogs] = useState(null);
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
+
+  // Função para voltar ao início
+  const handleHome = () => {
+    setActiveStep(0);
+    setFile1(null);
+    setFile2(null);
+    setColumns1([]);
+    setColumns2([]);
+    setKey1('');
+    setKey2('');
+    setAllColumns([]);
+    setSelectedColumns([]);
+    setColumnOrder([]);
+    setFileRefs({});
+    setMergedFile(null);
+  };
+
+  // Função para capturar erros detalhados
+  const captureError = (operation, error) => {
+    const errorDetails = {
+      operation,
+      timestamp: new Date().toISOString(),
+      message: error.response?.data?.error || error.response?.data?.message || error.message || 'Erro desconhecido',
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      url: error.config?.url,
+      method: error.config?.method,
+      data: error.response?.data,
+      fullError: error
+    };
+    
+    console.error(`❌ Erro em ${operation}:`, errorDetails);
+    setErrorLogs(errorDetails);
+    setShowErrorDialog(true);
+    
+    return errorDetails.message;
+  };
+
+  // Função para selecionar todas as colunas
+  const handleSelectAll = () => {
+    if (selectedColumns.length === allColumns.length) {
+      // Desmarcar todas
+      setSelectedColumns([]);
+      setColumnOrder([]);
+    } else {
+      // Marcar todas
+      setSelectedColumns([...allColumns]);
+      setColumnOrder([...allColumns]);
+    }
+  };
 
   // Upload das planilhas e leitura das colunas
   const handleUpload = async () => {
@@ -41,7 +94,12 @@ function App() {
       setColumnOrder([]); // Ordem inicial vazia
       setActiveStep(1);
     } catch (e) {
-      setSnackbar({ open: true, message: 'Erro ao carregar planilhas', severity: 'error' });
+      const errorMessage = captureError('Upload', e);
+      setSnackbar({ 
+        open: true, 
+        message: `Erro ao carregar planilhas: ${errorMessage}`, 
+        severity: 'error' 
+      });
     }
     setLoading(false);
   };
@@ -68,7 +126,12 @@ function App() {
       setMergedFile(res.data.file);
       setActiveStep(3);
     } catch (e) {
-      setSnackbar({ open: true, message: 'Erro ao gerar planilha', severity: 'error' });
+      const errorMessage = captureError('Merge', e);
+      setSnackbar({ 
+        open: true, 
+        message: `Erro ao gerar planilha: ${errorMessage}`, 
+        severity: 'error' 
+      });
     }
     setLoading(false);
   };
@@ -87,6 +150,13 @@ function App() {
       document.body.appendChild(link);
       link.click();
       link.remove();
+    }).catch((e) => {
+      const errorMessage = captureError('Download', e);
+      setSnackbar({ 
+        open: true, 
+        message: `Erro no download: ${errorMessage}`, 
+        severity: 'error' 
+      });
     });
   };
 
@@ -113,7 +183,21 @@ function App() {
     <Container maxWidth="sm" sx={{ mt: 6, mb: 6 }}>
       <Card sx={{ p: 3, borderRadius: 3, boxShadow: 4 }}>
         <CardContent>
-          <Typography variant="h4" align="center" gutterBottom color="primary">Juntar Planilhas</Typography>
+          {/* Botão HOME */}
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+            <Typography variant="h4" color="primary">Juntar Planilhas</Typography>
+            {activeStep > 0 && (
+              <Button
+                variant="outlined"
+                startIcon={<HomeIcon />}
+                onClick={handleHome}
+                size="small"
+              >
+                HOME
+              </Button>
+            )}
+          </Box>
+
           <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 4 }}>
             {steps.map(label => (
               <Step key={label}><StepLabel>{label}</StepLabel></Step>
@@ -180,6 +264,28 @@ function App() {
               <Typography variant="body2" color="text.secondary" gutterBottom>
                 Marque as colunas que deseja incluir na planilha final. A ordem será definida pela sequência de seleção.
               </Typography>
+              
+              {/* Caixinha para selecionar todas */}
+              <Box mb={2}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={selectedColumns.length === allColumns.length && allColumns.length > 0}
+                      indeterminate={selectedColumns.length > 0 && selectedColumns.length < allColumns.length}
+                      onChange={handleSelectAll}
+                      color="primary"
+                    />
+                  }
+                  label={`Selecionar todas as colunas (${selectedColumns.length}/${allColumns.length})`}
+                  sx={{ 
+                    '& .MuiFormControlLabel-label': {
+                      fontWeight: 'bold',
+                      color: '#1976d2'
+                    }
+                  }}
+                />
+              </Box>
+
               <Box sx={{ border: '1px solid #ccc', borderRadius: 2, p: 2, background: '#f9f9f9', maxHeight: 300, overflowY: 'auto' }}>
                 {allColumns.map((col, idx) => (
                   <FormControlLabel
@@ -230,6 +336,84 @@ function App() {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Modal de Logs de Erro */}
+      <Dialog 
+        open={showErrorDialog} 
+        onClose={() => setShowErrorDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={1}>
+            <BugIcon color="error" />
+            <Typography variant="h6">Logs de Erro Detalhados</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {errorLogs && (
+            <Box>
+              <Typography variant="subtitle1" gutterBottom>
+                <strong>Operação:</strong> {errorLogs.operation}
+              </Typography>
+              <Typography variant="subtitle1" gutterBottom>
+                <strong>Timestamp:</strong> {new Date(errorLogs.timestamp).toLocaleString()}
+              </Typography>
+              <Typography variant="subtitle1" gutterBottom>
+                <strong>Status:</strong> {errorLogs.status} {errorLogs.statusText}
+              </Typography>
+              <Typography variant="subtitle1" gutterBottom>
+                <strong>URL:</strong> {errorLogs.url}
+              </Typography>
+              <Typography variant="subtitle1" gutterBottom>
+                <strong>Método:</strong> {errorLogs.method}
+              </Typography>
+              <Typography variant="subtitle1" gutterBottom>
+                <strong>Mensagem:</strong> {errorLogs.message}
+              </Typography>
+              
+              {errorLogs.data && (
+                <Box mt={2}>
+                  <Typography variant="subtitle1" gutterBottom>
+                    <strong>Dados do Erro:</strong>
+                  </Typography>
+                  <Box 
+                    sx={{ 
+                      bgcolor: '#f5f5f5', 
+                      p: 2, 
+                      borderRadius: 1,
+                      fontFamily: 'monospace',
+                      fontSize: '0.875rem',
+                      maxHeight: 200,
+                      overflow: 'auto'
+                    }}
+                  >
+                    <pre>{JSON.stringify(errorLogs.data, null, 2)}</pre>
+                  </Box>
+                </Box>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowErrorDialog(false)}>Fechar</Button>
+          <Button 
+            onClick={() => {
+              if (errorLogs) {
+                navigator.clipboard.writeText(JSON.stringify(errorLogs, null, 2));
+                setSnackbar({ 
+                  open: true, 
+                  message: 'Logs copiados para a área de transferência!', 
+                  severity: 'success' 
+                });
+              }
+            }}
+            variant="outlined"
+          >
+            Copiar Logs
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }
