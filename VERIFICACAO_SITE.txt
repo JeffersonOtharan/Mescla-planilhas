@@ -1,0 +1,44 @@
+🔍 VERIFICAÇÃO RÁPIDA DO SITE
+
+📱 PASSO A PASSO PARA VERIFICAR SE O SITE ESTÁ FUNCIONANDO:
+
+1️⃣ TESTE DO BACKEND:
+   - Acesse: https://planilhasassist-7044f68cafa1.herokuapp.com/
+   - Deve aparecer: {"status":"OK","message":"Backend funcionando"}
+   - Agora inclui: contador de planilhas, uso de memória, próximo restart
+
+2️⃣ TESTE DO FRONTEND:
+   - Acesse: https://mesclaplanilhas.web.app
+   - Deve carregar a página de upload de planilhas
+
+3️⃣ TESTE COMPLETO:
+   - Faça upload de 2 planilhas pequenas
+   - Teste o processo de mesclagem
+   - Verifique se o download funciona
+
+✅ INDICADORES DE SUCESSO:
+   - Backend responde sem erro
+   - Frontend carrega normalmente
+   - Upload funciona
+   - Mesclagem processa sem timeout
+   - Download gera arquivo
+
+❌ SE HOUVER PROBLEMAS:
+   - Verifique conexão com internet
+   - Tente acessar os links em navegador diferente
+   - Aguarde alguns minutos e tente novamente
+   - Se erro de CORS: execute os comandos de atualização
+
+📞 CONTATO EM CASO DE PROBLEMAS:
+   - Verificar logs: heroku logs --num 10
+   - Status do servidor: heroku ps
+   - Teste CORS: node teste_cors.js
+
+🎯 RESULTADO ESPERADO:
+   Site funcionando com sistema de limpeza automática implementado!
+
+🔄 NOVO SISTEMA DE LIMPEZA:
+   - Restart automático a cada 3 planilhas processadas
+   - Monitoramento de memória a cada 30 segundos
+   - Limpeza de emergência se memória > 400MB
+   - Logs detalhados para debugging 
